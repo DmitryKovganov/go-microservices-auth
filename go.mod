@@ -1,4 +1,4 @@
-module main
+module github.com/DmitryKovganov/go-microservices-auth
 
 go 1.21.5
 
