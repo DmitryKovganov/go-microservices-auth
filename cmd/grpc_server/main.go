@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	desc "github.com/DmitryKovganov/go-microservices-auth/pkg/user_v1"
@@ -85,7 +86,10 @@ func (s *server) Get(ctx context.Context, req *desc.GetRequest) (*desc.GetRespon
 		return nil, status.Error(codes.InvalidArgument, "Id is required")
 	}
 
-	user, ok := state.users[req.GetId()]
+	state.m.RLock()
+	defer state.m.RLock()
+
+	user, ok := state.users[req.Id]
 	if !ok {
 		return nil, status.Error(codes.InvalidArgument, "User not found")
 	}
@@ -98,6 +102,26 @@ func (s *server) Get(ctx context.Context, req *desc.GetRequest) (*desc.GetRespon
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 	}, nil
+}
+
+func (s *server) Delete(ctx context.Context, req *desc.DeleteRequest) (*emptypb.Empty, error) {
+	log.Printf("Get, req: %+v", req.GetId())
+
+	if req.GetId() == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Id is required")
+	}
+
+	state.m.Lock()
+	defer state.m.Unlock()
+
+	_, ok := state.users[req.Id]
+	if !ok {
+		return nil, status.Error(codes.InvalidArgument, "User not found")
+	}
+
+	delete(state.users, req.Id)
+
+	return nil, nil
 }
 
 func main() {
