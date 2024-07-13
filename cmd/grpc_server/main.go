@@ -48,6 +48,10 @@ func (s *server) Create(ctx context.Context, req *desc.CreateRequest) (*desc.Cre
 		return nil, status.Error(codes.InvalidArgument, "Password is required")
 	}
 
+	if req.GetRole() == desc.UserRole_UNKNOWN {
+		return nil, status.Error(codes.InvalidArgument, "Role is required")
+	}
+
 	if req.GetPasswordConfirm() == "" {
 		return nil, status.Error(codes.InvalidArgument, "PasswordConfirm is required")
 	}
@@ -80,7 +84,7 @@ func (s *server) Create(ctx context.Context, req *desc.CreateRequest) (*desc.Cre
 }
 
 func (s *server) Get(ctx context.Context, req *desc.GetRequest) (*desc.GetResponse, error) {
-	log.Printf("Get, req: %+v", req.GetId())
+	log.Printf("Get, req: %+v", req)
 
 	if req.GetId() == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Id is required")
@@ -104,8 +108,57 @@ func (s *server) Get(ctx context.Context, req *desc.GetRequest) (*desc.GetRespon
 	}, nil
 }
 
+func (s *server) Update(ctx context.Context, req *desc.UpdateRequest) (*emptypb.Empty, error) {
+	log.Printf("Update, req: %+v", req)
+
+	if req.GetId() == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Id is required")
+	}
+
+	userId := req.GetId()
+
+	state.m.RLock()
+	defer state.m.RLock()
+
+	user, ok := state.users[userId]
+	if !ok {
+		return nil, status.Error(codes.InvalidArgument, "User not found")
+	}
+
+	if req.Email != nil {
+		email := req.Email.GetValue()
+		userWithSameEmail := findUserByEmail(email)
+		if userWithSameEmail != nil && userWithSameEmail.Id != user.Id {
+			return nil, status.Error(codes.InvalidArgument, "User with this Email already exists")
+		}
+		user.Info.Email = email
+	}
+
+	if req.Name != nil {
+		user.Info.Name = req.Name.GetValue()
+	}
+
+	if req.GetRole() != desc.UserRole_UNKNOWN {
+		user.Info.Role = req.Role
+	}
+
+	return nil, nil
+}
+
+func findUserByEmail(email string) *desc.User {
+	state.m.RLock()
+	defer state.m.RUnlock()
+
+	for _, user := range state.users {
+		if user.Info.Email == email {
+			return user
+		}
+	}
+	return nil
+}
+
 func (s *server) Delete(ctx context.Context, req *desc.DeleteRequest) (*emptypb.Empty, error) {
-	log.Printf("Get, req: %+v", req.GetId())
+	log.Printf("Delete, req: %+v", req)
 
 	if req.GetId() == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Id is required")
