@@ -1,6 +1,6 @@
 module github.com/DmitryKovganov/go-microservices-auth
 
-go 1.21.5
+go 1.23
 
 require (
 	google.golang.org/grpc v1.65.0
